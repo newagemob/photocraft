@@ -679,3 +679,20 @@ async fn command_batch_rejects_too_many_steps() {
     assert!(text(&r).contains("maximum is 256"), "{}", text(&r));
     client.cancel().await.unwrap();
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn listing_and_tools_carry_effect_metadata() {
+    let client = connect(PhotocraftMcp::headless()).await;
+    let all = json_of(&call(&client, "command_list", json!({})).await);
+    let all = all.as_array().unwrap();
+    assert!(all.iter().all(|c| c["journal"].is_boolean()), "every command says whether it is journaled");
+    assert!(all.iter().any(|c| c["id"] == "command.list" && c["journal"] == false));
+    assert!(all.iter().any(|c| c["id"] == "layer.new.layer" && c["journal"] == true));
+    let tools = client.list_all_tools().await.unwrap();
+    let ann = |n: &str| tools.iter().find(|t| t.name == n).and_then(|t| t.annotations.clone()).unwrap();
+    assert_eq!((ann("command_list").read_only_hint, ann("command_list").destructive_hint), (Some(true), Some(false)));
+    assert_eq!((ann("command_run").read_only_hint, ann("command_run").destructive_hint), (Some(false), Some(true)));
+    assert_eq!(ann("doc_new").destructive_hint, Some(false));
+    assert_eq!(ann("ui_pointer").destructive_hint, None);
+    client.cancel().await.unwrap();
+}

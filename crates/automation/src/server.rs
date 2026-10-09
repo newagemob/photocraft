@@ -361,7 +361,7 @@ fn downscale_png(png: &[u8], max_side: u32) -> Result<Option<Vec<u8>>, Automatio
 
 #[tool_router]
 impl PhotocraftMcp {
-    #[tool(description = "List open documents (index, name, size, dirty) and the active index.")]
+    #[tool(description = "List open documents (index, name, size, dirty) and the active index.", annotations(read_only_hint = true, destructive_hint = false))]
     async fn session_list(&self) -> Result<CallToolResult, McpError> {
         if let Some(r) = self.headless_op(|h| Ok(h.session_list())).await {
             return to_result(r);
@@ -372,7 +372,10 @@ impl PhotocraftMcp {
         to_result(b.call("ui.inspect", json!({})).await)
     }
 
-    #[tool(description = "Open an image or document file and make it active. Returns index, size and import warnings.")]
+    #[tool(
+        description = "Open an image or document file and make it active. Returns index, size and import warnings.",
+        annotations(read_only_hint = false, destructive_hint = false)
+    )]
     async fn doc_open(&self, Parameters(p): Parameters<OpenParams>) -> Result<CallToolResult, McpError> {
         let path = PathBuf::from(&p.path);
         if let Some(r) = self.headless_op(move |h| h.open(&path)).await {
@@ -384,7 +387,7 @@ impl PhotocraftMcp {
         to_result(b.call("app.open", json!({"path": p.path})).await)
     }
 
-    #[tool(description = "Create a new document (defaults: 1920x1080 RGB 8-bit white).")]
+    #[tool(description = "Create a new document (defaults: 1920x1080 RGB 8-bit white).", annotations(read_only_hint = false, destructive_hint = false))]
     async fn doc_new(&self, Parameters(p): Parameters<NewParams>) -> Result<CallToolResult, McpError> {
         let mut params = serde_json::Map::new();
         if let Some(v) = p.width {
@@ -408,13 +411,19 @@ impl PhotocraftMcp {
         self.run_command("file.new".into(), Value::Object(params), true).await
     }
 
-    #[tool(description = "Save the document. `.pcraft` is the lossless native format (incremental); other extensions \
-        (psd, png, jpg, tif, webp, exr, …) export. Without `path` only a PSD, PSB or .pcraft document is written back to its own         file. Returns warnings about anything the format cannot hold.")]
+    #[tool(
+        description = "Save the document. `.pcraft` is the lossless native format (incremental); other extensions \
+        (psd, png, jpg, tif, webp, exr, …) export. Without `path` only a PSD, PSB or .pcraft document is written back to its own         file. Returns warnings about anything the format cannot hold.",
+        annotations(read_only_hint = false, destructive_hint = true)
+    )]
     async fn doc_save(&self, Parameters(p): Parameters<SaveParams>) -> Result<CallToolResult, McpError> {
         self.save_impl(p).await
     }
 
-    #[tool(description = "Export the document to another format (same as doc_save with an explicit path/format).")]
+    #[tool(
+        description = "Export the document to another format (same as doc_save with an explicit path/format).",
+        annotations(read_only_hint = false, destructive_hint = true)
+    )]
     async fn doc_export(&self, Parameters(p): Parameters<SaveParams>) -> Result<CallToolResult, McpError> {
         if p.path.is_none() {
             return Ok(fail("doc_export needs `path`"));
@@ -422,7 +431,10 @@ impl PhotocraftMcp {
         self.save_impl(p).await
     }
 
-    #[tool(description = "Document state as JSON: layer tree (top to bottom), history, selection, active layer.")]
+    #[tool(
+        description = "Document state as JSON: layer tree (top to bottom), history, selection, active layer.",
+        annotations(read_only_hint = true, destructive_hint = false)
+    )]
     async fn doc_inspect(&self, Parameters(p): Parameters<DocIndex>) -> Result<CallToolResult, McpError> {
         if let Some(r) = self.headless_op(move |h| h.inspect(p.index)).await {
             return to_result(r);
@@ -434,7 +446,10 @@ impl PhotocraftMcp {
         to_result(b.call("engine.execute", json!({"command": "document.inspect", "params": params})).await)
     }
 
-    #[tool(description = "Render the flattened document and return it as a PNG image (bridge mode: window screenshot).")]
+    #[tool(
+        description = "Render the flattened document and return it as a PNG image (bridge mode: window screenshot).",
+        annotations(read_only_hint = true, destructive_hint = false)
+    )]
     async fn doc_render_preview(&self, Parameters(p): Parameters<PreviewParams>) -> Result<CallToolResult, McpError> {
         let max = p.max_side.unwrap_or(1024);
         if let Some(r) = self.headless_op(move |h| h.render_png(p.index, max)).await {
@@ -449,7 +464,7 @@ impl PhotocraftMcp {
         self.screenshot(b, Some(max)).await
     }
 
-    #[tool(description = "Make the document at `index` active.")]
+    #[tool(description = "Make the document at `index` active.", annotations(read_only_hint = false, destructive_hint = false))]
     async fn doc_select(&self, Parameters(p): Parameters<SelectParams>) -> Result<CallToolResult, McpError> {
         match self.headless_op(move |h| h.select(p.index)).await {
             Some(r) => to_result(r),
@@ -457,7 +472,7 @@ impl PhotocraftMcp {
         }
     }
 
-    #[tool(description = "Close a document (default: the active one) without saving.")]
+    #[tool(description = "Close a document (default: the active one) without saving.", annotations(read_only_hint = false, destructive_hint = true))]
     async fn doc_close(&self, Parameters(p): Parameters<DocIndex>) -> Result<CallToolResult, McpError> {
         match self.headless_op(move |h| h.close(p.index)).await {
             Some(r) => to_result(r),
@@ -465,7 +480,10 @@ impl PhotocraftMcp {
         }
     }
 
-    #[tool(description = "List engine commands: id, label, menu path, shortcut, parameter doc, enabled now.")]
+    #[tool(
+        description = "List engine commands: id, label, menu path, shortcut, parameter doc, enabled now.",
+        annotations(read_only_hint = true, destructive_hint = false)
+    )]
     async fn command_list(&self, Parameters(p): Parameters<ListParams>) -> Result<CallToolResult, McpError> {
         let all = if let Some(r) = self.headless_op(|h| Ok(h.command_list())).await {
             r
@@ -495,27 +513,39 @@ impl PhotocraftMcp {
         Ok(ok_json(&Value::Array(items)))
     }
 
-    #[tool(description = "Run an engine command by id with JSON params (see command_list). Returns the command's JSON result. \
+    #[tool(
+        description = "Run an engine command by id with JSON params (see command_list). Returns the command's JSON result. \
         Long commands (filters, Content-Aware Fill/Scale, Photomerge, brush import) wait to finish unless `wait` is false: \
-        then they run as a background job and the result is {job: id} (see jobs_list, jobs_cancel).")]
+        then they run as a background job and the result is {job: id} (see jobs_list, jobs_cancel).",
+        annotations(read_only_hint = false, destructive_hint = true)
+    )]
     async fn command_run(&self, Parameters(p): Parameters<RunParams>) -> Result<CallToolResult, McpError> {
         self.run_command(p.id, p.params.unwrap_or_else(|| json!({})), p.wait.unwrap_or(true)).await
     }
 
-    #[tool(description = "List background jobs: running ones with progress (0-1), message and elapsed time, then the last few \
-        that ended (state done|failed|cancelled with their result or error). Finished jobs are applied first.")]
+    #[tool(
+        description = "List background jobs: running ones with progress (0-1), message and elapsed time, then the last few \
+        that ended (state done|failed|cancelled with their result or error). Finished jobs are applied first.",
+        annotations(read_only_hint = true, destructive_hint = false)
+    )]
     async fn jobs_list(&self) -> Result<CallToolResult, McpError> {
         self.jobs_call("jobs.list", json!({})).await
     }
 
-    #[tool(description = "Cancel a background job by id (or every running job when `job` is omitted). The document is left \
-        unchanged.")]
+    #[tool(
+        description = "Cancel a background job by id (or every running job when `job` is omitted). The document is left \
+        unchanged.",
+        annotations(read_only_hint = false, destructive_hint = false)
+    )]
     async fn jobs_cancel(&self, Parameters(p): Parameters<JobCancelParams>) -> Result<CallToolResult, McpError> {
         self.jobs_call("jobs.cancel", p.job.map_or_else(|| json!({}), |j| json!({"job": j}))).await
     }
 
-    #[tool(description = "Run several engine commands in one call (fewer round trips). Returns {completed, failed, \
-        results:[{ok, result|error}]}; stops at the first error unless stop_on_error is false.")]
+    #[tool(
+        description = "Run several engine commands in one call (fewer round trips). Returns {completed, failed, \
+        results:[{ok, result|error}]}; stops at the first error unless stop_on_error is false.",
+        annotations(read_only_hint = false, destructive_hint = true)
+    )]
     async fn command_batch(&self, Parameters(p): Parameters<BatchParams>) -> Result<CallToolResult, McpError> {
         if p.steps.len() > MAX_BATCH_STEPS {
             return Ok(fail(format!("batch contains {} steps; maximum is {MAX_BATCH_STEPS}", p.steps.len())));
@@ -560,7 +590,8 @@ impl PhotocraftMcp {
     // ----- live-GUI tools (bridge mode) -----
 
     #[tool(
-        description = "Bridge mode: full UI state of the live app (tool, panels, views, dialogs, windows). For the menu tree, call `control_call` with method `ui.menu.list`."
+        description = "Bridge mode: full UI state of the live app (tool, panels, views, dialogs, windows). For the menu tree, call `control_call` with method `ui.menu.list`.",
+        annotations(read_only_hint = true, destructive_hint = false)
     )]
     async fn ui_inspect(&self) -> Result<CallToolResult, McpError> {
         match self.bridge_client() {
@@ -569,7 +600,7 @@ impl PhotocraftMcp {
         }
     }
 
-    #[tool(description = "Bridge mode: screenshot of the live app window as PNG.")]
+    #[tool(description = "Bridge mode: screenshot of the live app window as PNG.", annotations(read_only_hint = true, destructive_hint = false))]
     async fn ui_screenshot(&self, Parameters(p): Parameters<PreviewParams>) -> Result<CallToolResult, McpError> {
         match self.bridge_client() {
             Some(b) => self.screenshot(b, p.max_side).await,
@@ -578,7 +609,8 @@ impl PhotocraftMcp {
     }
 
     #[tool(
-        description = "Bridge mode: send pointer events (document coordinates) to the active tool; with a Color Picker open they sample the image into it instead."
+        description = "Bridge mode: send pointer events (document coordinates) to the active tool; with a Color Picker open they sample the image into it instead.",
+        annotations(read_only_hint = false)
     )]
     async fn ui_pointer(&self, Parameters(p): Parameters<PointerParams>) -> Result<CallToolResult, McpError> {
         match self.bridge_client() {
@@ -596,7 +628,7 @@ impl PhotocraftMcp {
         }
     }
 
-    #[tool(description = "Bridge mode: activate a menu item by id.")]
+    #[tool(description = "Bridge mode: activate a menu item by id.", annotations(read_only_hint = false, destructive_hint = true))]
     async fn ui_menu_invoke(&self, Parameters(p): Parameters<MenuParams>) -> Result<CallToolResult, McpError> {
         match self.bridge_client() {
             Some(b) => to_result(b.call("ui.menu.invoke", json!({"id": p.id})).await),
@@ -605,7 +637,8 @@ impl PhotocraftMcp {
     }
 
     #[tool(
-        description = "Bridge mode: change UI state (tool, panels, dock, zoom, center, fit, theme, brush settings; see `fields`). Unknown fields are an error."
+        description = "Bridge mode: change UI state (tool, panels, dock, zoom, center, fit, theme, brush settings; see `fields`). Unknown fields are an error.",
+        annotations(read_only_hint = false, destructive_hint = false)
     )]
     async fn ui_set(&self, Parameters(p): Parameters<UiSetParams>) -> Result<CallToolResult, McpError> {
         match self.bridge_client() {
@@ -614,7 +647,10 @@ impl PhotocraftMcp {
         }
     }
 
-    #[tool(description = "Bridge mode: call any control-protocol method (docs/control-protocol.md) with raw params.")]
+    #[tool(
+        description = "Bridge mode: call any control-protocol method (docs/control-protocol.md) with raw params.",
+        annotations(read_only_hint = false, destructive_hint = true)
+    )]
     async fn control_call(&self, Parameters(p): Parameters<ControlParams>) -> Result<CallToolResult, McpError> {
         match self.bridge_client() {
             Some(b) => to_result(b.call(&p.method, p.params.unwrap_or_else(|| json!({}))).await),

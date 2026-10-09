@@ -869,7 +869,7 @@ fn build() -> Vec<CommandSpec> {
                         .iter()
                         .map(|c| {
                             json!({
-                                "id": c.id, "label": c.label, "menu": c.menu, "shortcut": c.shortcut, "params": c.params, "enabled": (c.enabled)(s).is_ok(),
+                                "id": c.id, "label": c.label, "menu": c.menu, "shortcut": c.shortcut, "params": c.params, "enabled": (c.enabled)(s).is_ok(), "journal": c.journal,
                             })
                         })
                         .collect(),

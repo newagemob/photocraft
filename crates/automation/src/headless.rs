@@ -211,6 +211,7 @@ impl Headless {
                         "shortcut": c.shortcut,
                         "params": c.params,
                         "enabled": self.session.is_enabled(c.id),
+                        "journal": c.journal,
                     })
                 })
                 .collect(),
